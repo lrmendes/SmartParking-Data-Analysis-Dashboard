@@ -1,5 +1,6 @@
 body {
     font-family: sans-serif;
+    background-color: #f0f0f5;
 }
 
 #page-content {
@@ -7,6 +8,13 @@ body {
     padding-left: 10%;
 }
 
+#graph-grid {
+    padding:1rem;
+    background-color: rgba(86, 61, 124, 0.10);
+    border: 1px solid rgba(86, 61, 124, 0.2);
+    border-radius: 5px;
+}
+
 h1, h2, h3, h4, h5, h6 {
-    color: #000000
+    color: #000000;
 }
