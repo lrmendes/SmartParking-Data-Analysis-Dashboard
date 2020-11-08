@@ -15,7 +15,7 @@ dropdown1 = dbc.DropdownMenu(
     children=[
         dbc.DropdownMenuItem("Daily Parkings", href="/basic/graph1"),
         dbc.DropdownMenuItem(divider=True),
-        dbc.DropdownMenuItem("Grafico 2", href="/basic/graph2"),
+        dbc.DropdownMenuItem("Total Parkings", href="/basic/graph2"),
         dbc.DropdownMenuItem(divider=True),
         dbc.DropdownMenuItem("Grafico 3", href="/basic/graph3"),
     ],
@@ -55,7 +55,7 @@ dropdown3 = dbc.DropdownMenu(
 dashboard = dbc.Navbar(
     [
         dbc.Col(html.Img(src=PLOTLY_LOGO, height="30px"),sm=1, md=1),
-        dbc.Col(dbc.NavbarBrand("Parking Analitycs", href="#"), sm=3, md=2),
+        dbc.Col(dbc.NavbarBrand("Parking Analytics", href="#"), sm=3, md=2),
         dbc.NavbarToggler(id="navbar-toggler"),
         dbc.Collapse(
             dbc.Nav(
@@ -69,7 +69,7 @@ dashboard = dbc.Navbar(
         #    width="auto",
         #),
     ],
-    color="dark",
+    color="#6900af",
     dark=True,
     className="mb-5"
 )

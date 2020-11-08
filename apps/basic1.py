@@ -3,65 +3,65 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
+import plotly.express as px
 
 from app import app
 
-graph2 = dcc.Graph(
-    figure = {
-        'data': [
-            {
-                'x':[1,4,5,6,8],
-                'y':[2,5,4,9,12],
-                'type': 'line',
-                'name': 'IPB Cars'
-            },
-            {
-                'x':[1,2,4,6,8],
-                'y':[4,2,8,12,14],
-                'type': 'line',
-                'name': 'IPB Bikes'
-            }
-        ],
-        'layout': {
-            'title': "Simple Line Chart",
-            'font': {
-                'color': '#000000'
-            },
-            'dragmode': 'pan'
-        }
-    }
-)
+pd.options.plotting.backend = "plotly"
+
+df = pd.read_csv('generated_dataset_article.csv', dayfirst=True, parse_dates=['timeFrom','timeTo'])
+df['isRain'] = df['isRain'].astype('bool')
+df['isHoliday'] = df['isHoliday'].astype('bool')
+df['isWeekday'] = df['isWeekday'].astype('bool')
+#df['Legend'] = 1*df['isWeekday'] + 2*df['isRain'] + 4*df['isHoliday']
+
+#df['timeTo'] = pd.DatetimeIndex(df['timeTo']).time
+#fig1.update_layout(yaxis=dict(tickformat='%H:%M'))
+#fig1 = px.scatter(df, x="timeFrom", y="timeTo", height=700, hover_data=['isRain','isHoliday','isWeekday'], color='isRain')
+#fig1.update_layout(
+#    title="All Parkings by Entrance & Exit Date/Times",
+#    xaxis_title="Entrance",
+#    yaxis_title="Exit",
+#    legend_title="Rain",
+#    font=dict(
+#        size=14,
+#    )
+#)
+
 
 layout = dbc.Row([
     dbc.Col([
-        html.H3('App 1'),
+        dbc.Label('Choose Legend Filter'),
         dcc.Dropdown(
-            id='app-1-dropdown',
+            id='legend-filter',
             options=[
-                {'label': 'App 1 - {}'.format(i), 'value': i} for i in [
-                    'NYC', 'MTL', 'LA'
-                ]
-            ]
+                {'label': 'Rain Days', 'value': 'isRain'},
+                {'label': 'Holidays', 'value': 'isHoliday'},
+                {'label': 'WeekDays', 'value': 'isWeekday'},
+            ],
+            value='isRain',
+            clearable=False,
+            placeholder='Select Filter...'
         ),
-        html.Div(id='app-1-display-value'),
-        dcc.Link('Go to App 2', href='/apps/app2'),
-        graph2
+        html.Br(),
+        dcc.Graph(id='mainchart')
     ]),
-    dbc.Col([
-        html.H3('App 2'),
-        dcc.Dropdown(
-            id='app-1-dropdown',
-            options=[
-                {'label': 'App 1 - {}'.format(i), 'value': i} for i in [
-                    'NYC', 'MTL', 'LA'
-                ]
-            ]
-        ),
-        html.Div(id='app-1-display-value'),
-        dcc.Link('Go to App 2', href='/apps/app2'),
-        graph2
-    ]),
-    dbc.Col([
-        graph2
-    ]),
-])
+],id='graph-grid')
+
+@app.callback(
+    Output('mainchart','figure'),
+    Input('legend-filter','value')
+)
+
+def update_data(legenddropval):
+    mainchart = px.scatter(df, x="timeFrom", y="timeTo", height=700, hover_data=['isRain', 'isHoliday', 'isWeekday'], color=legenddropval)
+    mainchart.update_layout(
+        title="All Parkings by Entrance & Exit Date/Times",
+        xaxis_title="Entrance",
+        yaxis_title="Exit",
+        legend_title=legenddropval,
+        font=dict(
+            size=14,
+        )
+    )
+    return (mainchart)
