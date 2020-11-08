@@ -1,2 +1,4 @@
 .idea/
 __pycache__
+.vscode/
+generated_dataset_article.csv
