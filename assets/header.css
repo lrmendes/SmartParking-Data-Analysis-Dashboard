@@ -1,0 +1,13 @@
+.navbar-nav .nav-item:not(:last-child) {
+   border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.navbar-nav .nav-item .nav-link {
+    color: rgba(255,255,255,0.9);
+}
+
+@media (max-width: 768px) {
+  .navbar-nav .nav-item:not(:last-child) {
+    border-right: none;
+  }
+}
