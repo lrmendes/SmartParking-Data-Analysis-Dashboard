@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 from app import app
-from apps import basic1, basic2, home
+from apps import basic1, basic2, basic3, home
 
 PLOTLY_LOGO = "http://192.168.1.30:2424/assets/iconNew.png"
 
@@ -17,7 +17,7 @@ dropdown1 = dbc.DropdownMenu(
         dbc.DropdownMenuItem(divider=True),
         dbc.DropdownMenuItem("Total Parkings", href="/basic/graph2"),
         dbc.DropdownMenuItem(divider=True),
-        dbc.DropdownMenuItem("Grafico 3", href="/basic/graph3"),
+        dbc.DropdownMenuItem("Database as Datafrane", href="/basic/graph3"),
     ],
     nav=True,
     in_navbar=True,
@@ -87,6 +87,8 @@ def display_page(pathname):
         return basic1.layout
     elif pathname == '/basic/graph2':
         return basic2.layout
+    elif pathname == '/basic/graph3':
+        return basic3.layout
     else:
         return home.layout
 
