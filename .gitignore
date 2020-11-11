@@ -2,3 +2,5 @@
 __pycache__
 .vscode/
 generated_dataset_article.csv
+parkings.csv
+.mapbox_token
