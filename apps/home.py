@@ -8,7 +8,7 @@ import pandas as pd
 import dash_core_components as dcc
 import plotly.express as px
 
-UPDAUUimport plotly.graph_objects as go
+import plotly.graph_objects as go
 
 from dash_extensions import Download
 from dash_extensions.snippets import send_data_frame
