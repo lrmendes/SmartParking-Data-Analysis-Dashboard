@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 from app import app
-from apps import basic1, basic2, basic3, home
+from apps import basic1, basic2, basic3, home, predict_demand_arima, advanced1
 
 PLOTLY_LOGO = "http://192.168.1.30:2424/assets/iconNew.png"
 
@@ -27,7 +27,7 @@ dropdown1 = dbc.DropdownMenu(
 # make a reuseable dropdown for the different examples
 dropdown2 = dbc.DropdownMenu(
     children=[
-        dbc.DropdownMenuItem("Grafico 1", href="/advanced/graph1"),
+        dbc.DropdownMenuItem("Full Overview", href="/advanced/graph1"),
         dbc.DropdownMenuItem(divider=True),
         dbc.DropdownMenuItem("Grafico 2", href="/advanced/graph2"),
         dbc.DropdownMenuItem(divider=True),
@@ -40,7 +40,7 @@ dropdown2 = dbc.DropdownMenu(
 
 dropdown3 = dbc.DropdownMenu(
     children=[
-        dbc.DropdownMenuItem("Grafico 1"),
+        dbc.DropdownMenuItem("Parking Demand (ARIMA)",  href="/forecast/demand/arima"),
         dbc.DropdownMenuItem(divider=True),
         dbc.DropdownMenuItem("Grafico 2"),
         dbc.DropdownMenuItem(divider=True),
@@ -89,6 +89,10 @@ def display_page(pathname):
         return basic2.layout
     elif pathname == '/basic/graph3':
         return basic3.layout
+    elif pathname == '/advanced/graph1':
+        return advanced1.layout
+    elif pathname == '/forecast/demand/arima':
+        return predict_demand_arima.layout
     else:
         return home.layout
 
