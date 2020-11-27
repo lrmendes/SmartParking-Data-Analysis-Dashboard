@@ -104,8 +104,11 @@ layout = html.Div([
 def update_data(legenddropval, start_date, end_date):
     df2 = df.copy()
 
+    start_date_converted = pd.to_datetime(start_date).date()
+    end_date_converted = pd.to_datetime(end_date).date()
+
     # Apply Date Range
-    date_mask = (df2.index >= start_date) & (df2.index <= end_date)
+    date_mask = (df2.index.date >= start_date_converted) & (df2.index.date <= end_date_converted)
     df2 = df2.loc[date_mask]
 
     # GroupBy Hour
@@ -192,17 +195,43 @@ def update_data(legenddropval, start_date, end_date):
     total_records = len(df2)
 
     # Daily Mean Records
-    delta = pd.to_datetime(end_date).date() - pd.to_datetime(start_date).date()
-    adv1_daily_mean = html.Div('Daily Mean Records: ' + str(round((total_records / delta.days), 2)) + ' parkings/day')
+    #delta = pd.to_datetime(end_date).date() - pd.to_datetime(start_date).date()
+    #adv1_daily_mean = html.Div('Daily Mean Records: ' + str(round((total_records / delta.days), 2)) + ' parkings/day')
 
-    # Rainy & Sunny Records
-
+    # Statistics
     statistics = pd.DataFrame(
         {
-            "Statistic": ['Total Records: ','Daily Average Records: ', 'Sunny Weather Records: ','Rainy Weather Records: '],
-            "Value": [str(total_records), str(round((total_records / delta.days), 2)) + ' parkings/day', str(len(df2[df2['isRain'] == 0])), str(len(df2[df2['isRain'] == 1]))]
+            "Statistic": [
+                'Total Records (H)',
+                'Total Records (D)',
+                '',
+                'Rainy Weather Records',
+                'Sunny Weather Records',
+                '',
+                'Holiday Records',
+                'Non-Holiday Records',
+                'Total Holidays',
+                'Total Non-Holidays'
+            ],
+            "Value": [
+                str(total_records) + ' hours',
+                str(round(total_records / len(df3), 0)) + ' days',
+                '',
+                str(len(df2[df2['isRain'] == 0])) + ' hours',
+                str(len(df2[df2['isRain'] == 1])) + ' hours',
+                '',
+                str(len(df2[df2['isHoliday'] == 1])) + ' hours',
+                str(len(df2[df2['isHoliday'] == 0])) + ' hours',
+                str(round(len(df2[df2['isHoliday'] == 1]) / len(df3), -1)) + ' day(s)',
+                str(round(len(df2[df2['isHoliday'] == 0]) / len(df3), 0)) + ' day(s)',
+            ]
         }
     )
+
+    # Identificar principais horarios de fluxo do estacionamento
+    # Identificar como o estacionamento é afetado pelo clima ( mais ou menos em chuva )
+    # Identificar como o estacionamento é afetado por finais de semana ( mais ou menos em fds )
+    # Identificar como o estacionamento é afetado por feriados ( mais ou menos em feriados )
 
     adv1_table_statistics = dbc.Table.from_dataframe(statistics, bordered=True, dark=True, hover=True, responsive=True, striped=True)
 
