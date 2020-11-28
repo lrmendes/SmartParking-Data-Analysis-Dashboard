@@ -19,6 +19,16 @@ body {
     margin-bottom: 5px;
 }
 
+#graph-grid-notop {
+    padding:1rem;
+    background-color: rgba(86, 61, 124, 0.10);
+    border: 1px solid rgba(86, 61, 124, 0.2);
+    border-radius: 5px;
+
+    margin-right: 10px;
+    margin-bottom: 5px;
+}
+
 #statistics-grid {
     border-radius: 5px;
     margin-top: 5px;
