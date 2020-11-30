@@ -16,14 +16,53 @@ from app import app
 
 pd.options.plotting.backend = "plotly"
 
-df = pd.read_csv('generated_dataset_article_grouped_hour.csv', dayfirst=True, parse_dates=['timeFrom'], index_col='timeFrom')
-df['hour'] = df.index.hour
+df = pd.read_csv('generated_dataset_article_grouped_hour.csv')
+df['timeFrom'] = pd.to_datetime(df['timeFrom'], errors='ignore')
+df['timeFrom'] = pd.to_datetime(df["timeFrom"].dt.strftime('%d-%m-%Y %H:%M'))
+
 df['isRain'] = df['isRain'].astype('bool')
 df['isHoliday'] = df['isHoliday'].astype('bool')
 df['isWeekday'] = df['isWeekday'].astype('bool')
 df['regpark'] = df['parking'] + ' - ' + df['region']
-df['monthyear'] = df.index.strftime('%m-%Y')
+
+df['weekday'] = df['timeFrom'].dt.dayofweek
+df['hour'] = df['timeFrom'].dt.hour
+df['month'] = df['timeFrom'].dt.month
+df = df.set_index('timeFrom')
 df = df[df['TotalParkings'] > 0]
+
+def predict_by_average(base_df, predict_df):
+    predict_parkings = []
+    for row, index in predict_df.iterrows():
+        lens = []
+        # Group Parking by same Hour & Weekday
+        average_df = base_df.copy()
+        average_df = average_df[(average_df['hour'] == index['hour']) & (average_df['weekday'] == index['weekday'])]
+        lens.append(len(average_df))
+        valid_df = average_df.copy()
+
+        # Group Parking by same isRain condition
+        average_df = average_df[(average_df['isRain'] == index['isRain'])]
+        lens.append(len(average_df))
+        if len(average_df) > 0:
+            valid_df = average_df.copy()
+
+        # Group Parking by same isHoliday condition
+        average_df = average_df[(average_df['isHoliday'] == index['isHoliday'])]
+        lens.append(len(average_df))
+        if len(average_df) > 0:
+            valid_df = average_df.copy()
+
+        # Group Parking by same Month
+        average_df = average_df[(average_df['month'] == index['month'])]
+        lens.append(len(average_df))
+        if (len(average_df) > 0):
+            valid_df = average_df.copy()
+
+        predict_parkings.append(valid_df['TotalParkings'].mean())
+
+    predict_df['TotalParkingsPredict'] = predict_parkings
+    return predict_df
 
 layout = html.Div([
     html.H4('Parameters:'),
@@ -36,7 +75,7 @@ layout = html.Div([
                     id='pd1_date_slider',
                     min=50,
                     max=95,
-                    value=80,
+                    value=90,
                     step=None,
                     marks={i: {'label': str(i)+'% / '+str(100-i)+'%', 'style': {'color': '#000000'}} for i in range(50, 96, 5)},
                 ),
@@ -81,16 +120,24 @@ layout = html.Div([
     dbc.Row([
         dbc.Col([
             dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='pd1_mainchart'))], type="default")
-        ], width=9),
+        ]),
+    ], id='graph-grid'),
+    dbc.Row([
+        dbc.Col([
+            dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='pd1_dailychart'))], type="default")
+        ]),
+    ], id='graph-grid'),
+    dbc.Row([
         dbc.Col([
             html.Div([], id='pd1_table_statistics'),
         ])
-    ], id='graph-grid'),
+    ])
 ])
 
 
 @app.callback(
     [Output('pd1_mainchart','figure'),
+     Output('pd1_dailychart','figure'),
      Output('pd1_table_statistics', 'children')],
     [Input('pd1_region_filter','value'),
      Input('pd1_date_slider','value'),
@@ -98,12 +145,13 @@ layout = html.Div([
      Input("pd1_btn_forecast", "n_clicks")]
 )
 
-def update_data(region_filter, slider_date, checklist, btn_forecast):
-    print("Slider: ", slider_date)
-    print("Checklist: ", checklist)
-    print("Clicks: ", btn_forecast)
-    
+def update_data(region_filter, train_size, checklist, btn_forecast):
     pd1_mainchart = go.Figure()
+    pd1_mainchart.update_layout(height=250)
+
+    pd1_dailychart = go.Figure()
+    pd1_dailychart.update_layout(height=250)
+
     pd1_table_statistics = html.Div()
     
     # Check if Download Button has fired
@@ -112,47 +160,54 @@ def update_data(region_filter, slider_date, checklist, btn_forecast):
         # Apply Date Range
         df2 = df.copy()
 
-        #df2 = df2[df2['regpark'] == region_filter]
-        #df2 = df2[df2['TotalParkings'] != 0]
+        df2 = df2[df2['regpark'] == region_filter]
+        df2 = df2[df2['TotalParkings'] != 0]
+
+        test = int(len(df2) * ((100-train_size)/100))
+
+        df_train = df2.iloc[:-test]
+        df_test = df2.iloc[-test:]
+
+        predict_df = predict_by_average(df_train, df_test)
+        pd1_mainchart.add_trace(go.Scatter(x=predict_df.index, y=predict_df.TotalParkings,
+                                           mode='lines+markers',
+                                           name='Real Data'))
+        pd1_mainchart.add_trace(go.Scatter(x=predict_df.index, y=predict_df.TotalParkingsPredict,
+                                           mode='lines+markers',
+                                           name='Predict Data'))
+        pd1_mainchart.update_layout(
+            height=500,
+            title="["+str(region_filter)+"] Forecast - Total Parkings Grouped by Hour",
+            xaxis_title="Hour",
+            yaxis_title="Total Parkings",
+        )
+        pd1_mainchart.layout.update(
+            hovermode='x unified',
+            margin=dict(l=20, r=20, t=40, b=5),
+        )
+
+        # Export Data Grouped By Day - 365 Rows by Year
+        df3 = predict_df.copy()
+        pd.to_datetime(df3.index, errors='ignore')
+        df3 = df3.resample('D').sum()
+
+        pd1_dailychart.add_trace(go.Scatter(x=df3.index, y=df3.TotalParkings,
+                                            mode='lines+markers',
+                                            name='Real Data'))
+        pd1_dailychart.add_trace(go.Scatter(x=df3.index, y=df3.TotalParkingsPredict,
+                                            mode='lines+markers',
+                                            name='Predict Data'))
+        pd1_dailychart.update_layout(
+            height=500,
+            title="["+str(region_filter)+"] Forecast - Total Parkings Grouped by Day",
+            xaxis_title="Hour",
+            yaxis_title="Total Parkings",
+        )
+
+        pd1_dailychart.layout.update(
+            hovermode='x unified',
+            margin=dict(l=20, r=20, t=40, b=5),
+        )
 
 
-        print("Clicou")
-
-    """
-    # Apply Legend
-    pd1_mainchart = px.scatter(df2, x=df2.index, y="timeTo", height=700, custom_data=['isRain','isHoliday','isWeekday'], color=legenddropval)
-    pd1_mainchart.update_layout(
-        title="All Parkings by Entrance & Exit Date/Times",
-        xaxis_title="Entrance",
-        yaxis_title="Exit",
-        legend_title=legenddropval,
-    )
-    pd1_mainchart.update_traces(
-        hoverinfo='skip',
-        hovertemplate='Entrance: <b>%{x}</b><br>'
-                      + 'Exit: <b>%{y}</b><br><br>'
-                      + 'isRain: <b>%{customdata[0]}</b><br>'
-                      + 'isHoliday: <b>%{customdata[1]}</b><br>'
-                      + 'isWeekday: <b>%{customdata[2]}</b>'
-                      + '<extra></extra>')
-
-    # Total Records
-    total_records = len(df2)
-
-    # Daily Mean Records
-    delta = pd.to_datetime(end_date).date() - pd.to_datetime(start_date).date()
-    pd1_daily_mean = html.Div('Daily Mean Records: ' + str(round((total_records / delta.days), 2)) + ' parkings/day')
-
-    # Rainy & Sunny Records
-
-    statistics = pd.DataFrame(
-        {
-            "Statistic": ['Total Records: ','Daily Average Records: ', 'Sunny Weather Records: ','Rainy Weather Records: '],
-            "Value": [str(total_records), str(round((total_records / delta.days), 2)) + ' parkings/day', str(len(df2[df2['isRain'] == 0])), str(len(df2[df2['isRain'] == 1]))]
-        }
-    )
-
-    pd1_table_statistics = dbc.Table.from_dataframe(statistics, bordered=True, dark=True, hover=True, responsive=True, striped=True)
-    """
-
-    return (pd1_mainchart, pd1_table_statistics)
+    return (pd1_mainchart, pd1_dailychart, pd1_table_statistics)

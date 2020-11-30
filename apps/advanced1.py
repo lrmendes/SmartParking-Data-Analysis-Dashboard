@@ -289,6 +289,6 @@ def update_data(region_filter, start_date, end_date):
         html.Br(),
         html.Div([html.B([stats_label4[0]]), stats_label4[2], html.B([stats_label4_v]), stats_label4[3], html.B([stats_label4[1]]), '.']),
         html.Br(),
-    ], id='adv1_table_statistics'),
+    ]),
 
     return (adv1_mainchart, adv2_mainchart, adv3_mainchart, adv4_mainchart, adv1_table_statistics, adv1_stats_div)
