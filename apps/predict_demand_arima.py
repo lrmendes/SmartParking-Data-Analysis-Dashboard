@@ -5,6 +5,8 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
 from datetime import date, datetime
+from dash import callback_context
+import plotly.graph_objects as go
 
 from app import app
 
@@ -14,50 +16,68 @@ from app import app
 
 pd.options.plotting.backend = "plotly"
 
-df = pd.read_csv('generated_dataset_article.csv', dayfirst=True, parse_dates=['timeFrom','timeTo'])
+df = pd.read_csv('generated_dataset_article_grouped_hour.csv', dayfirst=True, parse_dates=['timeFrom'], index_col='timeFrom')
+df['hour'] = df.index.hour
 df['isRain'] = df['isRain'].astype('bool')
 df['isHoliday'] = df['isHoliday'].astype('bool')
 df['isWeekday'] = df['isWeekday'].astype('bool')
-
-min_date = df['timeFrom'].min()
-max_date = df['timeFrom'].max()
-start_min_date = min_date
-if len(df['timeFrom']) > 5000:
-    start_min_date = df.iloc[len(df)-5000]['timeFrom']
-
+df['regpark'] = df['parking'] + ' - ' + df['region']
+df['monthyear'] = df.index.strftime('%m-%Y')
+df = df[df['TotalParkings'] > 0]
 
 layout = html.Div([
+    html.H4('Parameters:'),
     dbc.Row([
         dbc.Col([
             html.Div([
-                dbc.Label('Date Range:'),
+                dbc.Label('Train/Test Size:'),
                 html.Br(),
-                dcc.DatePickerRange(
-                    id='pd1_date_range',
-                    min_date_allowed=min_date,
-                    max_date_allowed=max_date,
-                    initial_visible_month=max_date,
-                    start_date=start_min_date,
-                    end_date=max_date,
+                dcc.Slider(
+                    id='pd1_date_slider',
+                    min=50,
+                    max=95,
+                    value=80,
+                    step=None,
+                    marks={i: {'label': str(i)+'% / '+str(100-i)+'%', 'style': {'color': '#000000'}} for i in range(50, 96, 5)},
                 ),
             ]),
-        ], width="auto"),
+        ], id='graph-grid'),
+    ]),
+    dbc.Row([
         dbc.Col([
-            dbc.Label('Choose Legend Filter'),
+            dbc.Label('Select Parking & Region:'),
             dcc.Dropdown(
-                id='pd1_legend',
+                id='pd1_region_filter',
                 options=[
-                    {'label': 'Rain Days', 'value': 'isRain'},
-                    {'label': 'Holidays', 'value': 'isHoliday'},
-                    {'label': 'WeekDays', 'value': 'isWeekday'},
+                    {'label': i, 'value': i} for i in df.regpark.unique()
                 ],
-                value='isRain',
+                value=df.regpark.unique()[0],
                 clearable=False,
                 placeholder='Select Filter...'
             ),
-        ]),
+        ], id='graph-grid', width="auto"),
+        dbc.Col([
+            dbc.Label('Consider Variables:'),
+            dcc.Checklist(
+                id='pd1_checklist',
+                options=[
+                    {'label': 'isRain', 'value': 'rain'},
+                    {'label': 'isHoliday', 'value': 'holiday'},
+                    {'label': 'isWeekday', 'value': 'weekday'},
+                    {'label': 'SameMonth', 'value': 'month'},
+                ],
+                value=['rain', 'holiday', 'weekday', 'month'],
+                labelStyle={'display': 'inline-block', "margin-right": "20px"}
+            ),
+        ], id='graph-grid', width="auto"),
+        dbc.Col([
+            dbc.Label('Submit:'),
+            html.Br(),
+            dbc.Button("Start Forecast", id="pd1_btn_forecast", color="success")
+        ], id='graph-grid', width="auto")
     ]),
     html.Br(),
+    html.H4('Data Visualization:'),
     dbc.Row([
         dbc.Col([
             dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='pd1_mainchart'))], type="default")
@@ -65,26 +85,42 @@ layout = html.Div([
         dbc.Col([
             html.Div([], id='pd1_table_statistics'),
         ])
-    ]),
-], id='graph-grid')
+    ], id='graph-grid'),
+])
 
 
 @app.callback(
     [Output('pd1_mainchart','figure'),
      Output('pd1_table_statistics', 'children')],
-    [Input('pd1_legend','value'),
-     Input('pd1_date_range','start_date'),
-     Input('pd1_date_range','end_date')]
+    [Input('pd1_region_filter','value'),
+     Input('pd1_date_slider','value'),
+     Input('pd1_checklist','value'),
+     Input("pd1_btn_forecast", "n_clicks")]
 )
-def update_data(legenddropval, start_date, end_date):
-    df2 = df.copy()
 
-    # Apply Date Range
-    date_mask = (df2['timeFrom'] >= start_date) & (df2['timeFrom'] <= end_date)
-    df2 = df2.loc[date_mask]
+def update_data(region_filter, slider_date, checklist, btn_forecast):
+    print("Slider: ", slider_date)
+    print("Checklist: ", checklist)
+    print("Clicks: ", btn_forecast)
+    
+    pd1_mainchart = go.Figure()
+    pd1_table_statistics = html.Div()
+    
+    # Check if Download Button has fired
+    changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+    if 'pd1_btn_forecast' in changed_id:
+        # Apply Date Range
+        df2 = df.copy()
 
+        #df2 = df2[df2['regpark'] == region_filter]
+        #df2 = df2[df2['TotalParkings'] != 0]
+
+
+        print("Clicou")
+
+    """
     # Apply Legend
-    pd1_mainchart = px.scatter(df2, x="timeFrom", y="timeTo", height=700, custom_data=['isRain','isHoliday','isWeekday'], color=legenddropval)
+    pd1_mainchart = px.scatter(df2, x=df2.index, y="timeTo", height=700, custom_data=['isRain','isHoliday','isWeekday'], color=legenddropval)
     pd1_mainchart.update_layout(
         title="All Parkings by Entrance & Exit Date/Times",
         xaxis_title="Entrance",
@@ -117,5 +153,6 @@ def update_data(legenddropval, start_date, end_date):
     )
 
     pd1_table_statistics = dbc.Table.from_dataframe(statistics, bordered=True, dark=True, hover=True, responsive=True, striped=True)
+    """
 
     return (pd1_mainchart, pd1_table_statistics)
