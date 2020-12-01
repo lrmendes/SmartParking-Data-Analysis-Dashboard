@@ -7,6 +7,7 @@ import plotly.express as px
 from datetime import date, datetime
 from dash import callback_context
 import plotly.graph_objects as go
+from dash.dash import no_update
 
 from app import app
 
@@ -31,38 +32,50 @@ df['month'] = df['timeFrom'].dt.month
 df = df.set_index('timeFrom')
 df = df[df['TotalParkings'] > 0]
 
-def predict_by_average(base_df, predict_df):
+
+def predict_by_average(base_df, predict_df, checklist):
     predict_parkings = []
     for row, index in predict_df.iterrows():
-        lens = []
-        # Group Parking by same Hour & Weekday
+        # lens = []
+        # Group Parking by same Hour
         average_df = base_df.copy()
-        average_df = average_df[(average_df['hour'] == index['hour']) & (average_df['weekday'] == index['weekday'])]
-        lens.append(len(average_df))
+        average_df = average_df[(average_df['hour'] == index['hour'])]
+        # lens.append(len(average_df))
         valid_df = average_df.copy()
 
+        # Groud Parkings by same weekday condition
+        if 'weekday' in checklist:
+            average_df = average_df[(average_df['weekday'] == index['weekday'])]
+            # lens.append(len(average_df))
+            if len(average_df) > 0:
+                valid_df = average_df.copy()
+
         # Group Parking by same isRain condition
-        average_df = average_df[(average_df['isRain'] == index['isRain'])]
-        lens.append(len(average_df))
-        if len(average_df) > 0:
-            valid_df = average_df.copy()
+        if 'rain' in checklist:
+            average_df = average_df[(average_df['isRain'] == index['isRain'])]
+            # lens.append(len(average_df))
+            if len(average_df) > 0:
+                valid_df = average_df.copy()
 
         # Group Parking by same isHoliday condition
-        average_df = average_df[(average_df['isHoliday'] == index['isHoliday'])]
-        lens.append(len(average_df))
-        if len(average_df) > 0:
-            valid_df = average_df.copy()
+        if 'holiday' in checklist:
+            average_df = average_df[(average_df['isHoliday'] == index['isHoliday'])]
+            # lens.append(len(average_df))
+            if len(average_df) > 0:
+                valid_df = average_df.copy()
 
         # Group Parking by same Month
-        average_df = average_df[(average_df['month'] == index['month'])]
-        lens.append(len(average_df))
-        if (len(average_df) > 0):
-            valid_df = average_df.copy()
+        if 'month' in checklist:
+            average_df = average_df[(average_df['month'] == index['month'])]
+            # lens.append(len(average_df))
+            if (len(average_df) > 0):
+                valid_df = average_df.copy()
 
         predict_parkings.append(valid_df['TotalParkings'].mean())
 
     predict_df['TotalParkingsPredict'] = predict_parkings
     return predict_df
+
 
 layout = html.Div([
     html.H4('Parameters:'),
@@ -77,10 +90,11 @@ layout = html.Div([
                     max=95,
                     value=90,
                     step=None,
-                    marks={i: {'label': str(i)+'% / '+str(100-i)+'%', 'style': {'color': '#000000'}} for i in range(50, 96, 5)},
+                    marks={i: {'label': str(i) + '% / ' + str(100 - i) + '%', 'style': {'color': '#000000'}} for i in
+                           range(50, 96, 5)},
                 ),
             ]),
-        ], id='graph-grid'),
+        ], className='graph-grid'),
     ]),
     dbc.Row([
         dbc.Col([
@@ -94,7 +108,7 @@ layout = html.Div([
                 clearable=False,
                 placeholder='Select Filter...'
             ),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
         dbc.Col([
             dbc.Label('Consider Variables:'),
             dcc.Checklist(
@@ -106,27 +120,27 @@ layout = html.Div([
                     {'label': 'SameMonth', 'value': 'month'},
                 ],
                 value=['rain', 'holiday', 'weekday', 'month'],
-                labelStyle={'display': 'inline-block', "margin-right": "20px"}
+                labelStyle={'display': 'inline-block', "marginRight": "20px"}
             ),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
         dbc.Col([
             dbc.Label('Submit:'),
             html.Br(),
             dbc.Button("Start Forecast", id="pd1_btn_forecast", color="success")
-        ], id='graph-grid', width="auto")
+        ], className='graph-grid', width="auto")
     ]),
     html.Br(),
     html.H4('Data Visualization:'),
     dbc.Row([
         dbc.Col([
-            dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='pd1_mainchart'))], type="default")
+            dcc.Loading(id="pd1_loading-icon", children=[html.Div(dcc.Graph(id='pd1_mainchart'))], type="default")
         ]),
-    ], id='graph-grid'),
+    ], className='graph-grid'),
     dbc.Row([
         dbc.Col([
-            dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='pd1_dailychart'))], type="default")
+            dcc.Loading(id="pd1_loading-icon", children=[html.Div(dcc.Graph(id='pd1_dailychart'))], type="default")
         ]),
-    ], id='graph-grid'),
+    ], className='graph-grid'),
     dbc.Row([
         dbc.Col([
             html.Div([], id='pd1_table_statistics'),
@@ -136,15 +150,14 @@ layout = html.Div([
 
 
 @app.callback(
-    [Output('pd1_mainchart','figure'),
-     Output('pd1_dailychart','figure'),
+    [Output('pd1_mainchart', 'figure'),
+     Output('pd1_dailychart', 'figure'),
      Output('pd1_table_statistics', 'children')],
-    [Input('pd1_region_filter','value'),
-     Input('pd1_date_slider','value'),
-     Input('pd1_checklist','value'),
+    [Input('pd1_region_filter', 'value'),
+     Input('pd1_date_slider', 'value'),
+     Input('pd1_checklist', 'value'),
      Input("pd1_btn_forecast", "n_clicks")]
 )
-
 def update_data(region_filter, train_size, checklist, btn_forecast):
     pd1_mainchart = go.Figure()
     pd1_mainchart.update_layout(height=250)
@@ -153,22 +166,24 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
     pd1_dailychart.update_layout(height=250)
 
     pd1_table_statistics = html.Div()
-    
+
     # Check if Download Button has fired
     changed_id = [p['prop_id'] for p in callback_context.triggered][0]
-    if 'pd1_btn_forecast' in changed_id:
+    if not 'pd1_btn_forecast' in changed_id:
+        return no_update
+    else:
         # Apply Date Range
         df2 = df.copy()
 
         df2 = df2[df2['regpark'] == region_filter]
         df2 = df2[df2['TotalParkings'] != 0]
 
-        test = int(len(df2) * ((100-train_size)/100))
+        test = int(len(df2) * ((100 - train_size) / 100))
 
         df_train = df2.iloc[:-test]
         df_test = df2.iloc[-test:]
 
-        predict_df = predict_by_average(df_train, df_test)
+        predict_df = predict_by_average(df_train, df_test, checklist)
         pd1_mainchart.add_trace(go.Scatter(x=predict_df.index, y=predict_df.TotalParkings,
                                            mode='lines+markers',
                                            name='Real Data'))
@@ -177,7 +192,7 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
                                            name='Predict Data'))
         pd1_mainchart.update_layout(
             height=500,
-            title="["+str(region_filter)+"] Forecast - Total Parkings Grouped by Hour",
+            title="[" + str(region_filter) + "] Forecast - Total Parkings Grouped by Hour",
             xaxis_title="Hour",
             yaxis_title="Total Parkings",
         )
@@ -199,7 +214,7 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
                                             name='Predict Data'))
         pd1_dailychart.update_layout(
             height=500,
-            title="["+str(region_filter)+"] Forecast - Total Parkings Grouped by Day",
+            title="[" + str(region_filter) + "] Forecast - Total Parkings Grouped by Day",
             xaxis_title="Hour",
             yaxis_title="Total Parkings",
         )
@@ -208,6 +223,5 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
             hovermode='x unified',
             margin=dict(l=20, r=20, t=40, b=5),
         )
-
 
     return (pd1_mainchart, pd1_dailychart, pd1_table_statistics)
