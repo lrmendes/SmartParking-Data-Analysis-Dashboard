@@ -38,7 +38,7 @@ layout = html.Div([
                     end_date=max_date,
                 ),
             ]),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
         dbc.Col([
             html.Div([
                 dbc.Label('Select Parking & Region:'),
@@ -52,7 +52,7 @@ layout = html.Div([
                     placeholder='Select Filter...'
                 ),
             ]),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
     ]),
     html.Br(),
     html.H4('Data Visualization:'),
@@ -83,7 +83,7 @@ layout = html.Div([
             html.Div([], id='adv1_table_statistics'),
             html.Div([], id='adv1_stats_div'),
         ])
-    ], id='graph-grid'),
+    ], className='graph-grid'),
 ])
 
 

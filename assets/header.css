@@ -11,6 +11,10 @@
     border-bottom: 2px solid #ffffff13;
 }
 
+.navbar-collapse {
+    margin-right: 50px;
+}
+
 @media (max-width: 768px) {
   .navbar-nav .nav-item:not(:last-child) {
     border-right: none;

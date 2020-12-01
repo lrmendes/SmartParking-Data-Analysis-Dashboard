@@ -45,7 +45,7 @@ layout = html.Div([
                     end_date=max_date,
                 ),
             ]),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
         dbc.Col([
             html.Div([
                 dbc.Label('Group Parkings By:'),
@@ -61,7 +61,7 @@ layout = html.Div([
                     placeholder='Select Filter...'
                 ),
             ]),
-        ], id='graph-grid', width="auto"),
+        ], className='graph-grid', width="auto"),
         dbc.Col([
             html.Div([
                 dbc.Label('Graph Type:'),
@@ -77,7 +77,7 @@ layout = html.Div([
                     placeholder='Select Graph Type...'
                 ),
             ]),
-        ], id='graph-grid'),
+        ], className='graph-grid'),
     ]),
     html.Br(),
     html.H4('Data Visualization:'),
@@ -85,7 +85,7 @@ layout = html.Div([
         dbc.Col([
             html.Br(),
             dcc.Loading(id="loading-icon",children=[html.Div(dcc.Graph(id='b2_mainchart'))], type="default")
-        ], width=9, id='graph-grid'),
+        ], width=9, className='graph-grid'),
         dbc.Col([
             html.Div([], id='b2_table_statistics'),
             html.Div([html.Button("Download CSV", id="b2_btn_download_csv"), Download(id="b2_download_csv")])

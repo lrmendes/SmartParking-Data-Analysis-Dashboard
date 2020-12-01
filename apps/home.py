@@ -50,7 +50,7 @@ layout = html.Div([
                         placeholder='Select Filter...'
                     ),
                 ]),
-            ], id='graph-grid', width="auto"),
+            ], className='graph-grid', width="auto"),
             dbc.Col([
                 html.Div([
                     dbc.Label('Select Date:'),
@@ -64,15 +64,15 @@ layout = html.Div([
                     ),
                     html.Div(id='home_output')
                 ]),
-            ], id='graph-grid', width="auto"),
+            ], className='graph-grid', width="auto"),
         ]),
         dbc.Row([
             dbc.Col([
                 dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='home_chart1'))], type="default")
-            ], id='graph-grid', width=9),
+            ], className='graph-grid', width=9),
             dbc.Col([
                 dcc.Loading(id="loading-icon", children=[html.Div([], id='home_table_statistics')], type="default")
-            ], id='graph-grid', width='auto')
+            ], className='graph-grid', width='auto')
     ]),
     ]),
     html.Br(),
@@ -127,13 +127,13 @@ layout = html.Div([
                     ),
                 ]),
             ]),
-        ], id='graph-grid'),
+        ], className='graph-grid'),
         dbc.Row([
             dbc.Col([
                 html.Br(),
                 dcc.Loading(id="loading-icon", children=[html.Div(dcc.Graph(id='home_mapchart'))], type="default")
             ])
-        ], id='graph-grid')
+        ], className='graph-grid')
     ]),
     html.Br()
 ])
