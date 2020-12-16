@@ -167,7 +167,7 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
 
     pd1_table_statistics = html.Div()
 
-    # Check if Download Button has fired
+    # Check if StartForecast Button has fired
     changed_id = [p['prop_id'] for p in callback_context.triggered][0]
     if not 'pd1_btn_forecast' in changed_id:
         return no_update
