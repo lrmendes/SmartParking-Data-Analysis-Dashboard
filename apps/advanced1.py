@@ -6,8 +6,17 @@ import pandas as pd
 import plotly.express as px
 from datetime import date, datetime
 import plotly.graph_objects as go
+from dash.dash import no_update
+from dash import callback_context
 
 from app import app
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+cred = credentials.Certificate("SECRET.json")
+firebase_admin.initialize_app(cred)
+print("Execute Once")
 
 pd.options.plotting.backend = "plotly"
 
@@ -82,6 +91,11 @@ layout = html.Div([
         dbc.Col([
             html.Div([], id='adv1_table_statistics'),
             html.Div([], id='adv1_stats_div'),
+            html.Br(),
+            html.H4('Cloud Data Sync:'),
+            dbc.Col([
+                dbc.Button("Update Parking Data (Cloud)", id="adv1_btn_cloud", color="success"),
+            ], className='graph-grid', width="auto")
         ])
     ], className='graph-grid'),
 ])
@@ -96,9 +110,11 @@ layout = html.Div([
      Output('adv1_stats_div', 'children')],
     [Input('adv1_region_filter', 'value'),
      Input('adv1_date_range', 'start_date'),
-     Input('adv1_date_range', 'end_date')]
+     Input('adv1_date_range', 'end_date'),
+     Input("adv1_btn_cloud", "n_clicks")]
 )
-def update_data(region_filter, start_date, end_date):
+
+def update_data(region_filter, start_date, end_date, btn_cloud):
     df2 = df.copy()
     df2 = df2[df2['regpark'] == region_filter]
     df2 = df2[df2['TotalParkings'] != 0]
@@ -237,7 +253,6 @@ def update_data(region_filter, start_date, end_date):
 
     adv1_table_statistics = dbc.Table.from_dataframe(statistics, bordered=True, dark=True, hover=True, responsive=True, striped=True)
 
-    print("\n---------------")
     stats_label0 = ['The highest daily flow occurs at ', ' hours', ' and has an average flow ', '% higher', ' than the general average']
     stats_label0_v = round(((df3['TotalParkings'].max() * 100) / df3['TotalParkings'].mean()) - 100, 2)
     stats_label0_h = df3[df3['TotalParkings'] == df3['TotalParkings'].max()].index.values[0]
@@ -289,6 +304,77 @@ def update_data(region_filter, start_date, end_date):
         html.Br(),
         html.Div([html.B([stats_label4[0]]), stats_label4[2], html.B([stats_label4_v]), stats_label4[3], html.B([stats_label4[1]]), '.']),
         html.Br(),
-    ]),
+    ])
+
+    card_content_1 = [
+        dbc.CardHeader("Daily Flow"),
+        dbc.CardBody([
+            html.H6([html.B(["+", stats_label0_v, "%"]), " at ", html.B([stats_label0_h, stats_label0[1]]), " (Highest)"],
+                    className="card-title"),
+            html.H6([html.B(["-", stats_label1_v, "%"]), " at ", html.B([stats_label1_h, stats_label1[1]]), " (Lowest)"],
+                    className="card-title"),
+        ]),
+    ]
+
+    card_content_2 = [
+        dbc.CardHeader("Weather Impact"),
+        dbc.CardBody([html.H5([html.B(["+", stats_label2_v, "%"]), " in ", html.B([stats_label2[0], " Hours"])], className="card-title")]),
+    ]
+
+    card_content_3 = [
+        dbc.CardHeader("Holidays Impact"),
+        dbc.CardBody([html.H5([html.B(["+", stats_label3_v, "%"]), " in ", html.B([stats_label3[0]])], className="card-title")]),
+    ]
+
+    card_content_4 = [
+        dbc.CardHeader("Weekdays Impact"),
+        dbc.CardBody([html.H5([html.B(["+", stats_label4_v, "%"]), " in ", html.B([stats_label4[0]])], className="card-title")]),
+    ]
+
+    adv1_stats_div = html.Div([
+        dbc.Card(card_content_1, color="info", inverse=True),
+        html.Br(),
+        dbc.Card(card_content_2, color="info", inverse=True),
+        html.Br(),
+        dbc.Card(card_content_3, color="info", inverse=True),
+        html.Br(),
+        dbc.Card(card_content_4, color="info", inverse=True),
+    ])
+
+    # Check if UpdateSync Cloud Button has fired
+    changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+    if 'adv1_btn_cloud' in changed_id:
+        print("---------")
+        db = firestore.client()
+
+        if region_filter == 'IPB - Cantina':
+            parking_ref = db.collection(u'Parkings').document(u'IPB')
+        else:
+            parking_ref = db.collection(u'Parkings').document(u'Continente')
+
+        if stats_label2[0] == "Sunny":
+            isRain = round((100 - stats_label2_v) / 100, 2)
+        else:
+            isRain = round((100 + stats_label2_v) / 100, 2)
+
+        if stats_label3[0] == "Non-Holidays":
+            isHoliday = round((100 - stats_label3_v) / 100, 2)
+        else:
+            isHoliday = round((100 + stats_label3_v) / 100, 2)
+
+        if stats_label4[0] == "Weekdays":
+            isWeekend = round((100 - stats_label4_v) / 100, 2)
+        else:
+            isWeekend = round((100 + stats_label4_v) / 100, 2)
+
+        parking_ref.set({
+            u'statistics': {
+                u'isRainy': isRain,
+                u'isHoliday': isHoliday,
+                u'isWeekend': isWeekend,
+            }
+        }, merge=True)
+        print("Finished")
+        return no_update
 
     return (adv1_mainchart, adv2_mainchart, adv3_mainchart, adv4_mainchart, adv1_table_statistics, adv1_stats_div)
