@@ -9,13 +9,8 @@ from dash import callback_context
 import plotly.graph_objects as go
 from dash.dash import no_update
 
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, mean_squared_error
-from sklearn.metrics import regression, confusion_matrix
-from sklearn.metrics import explained_variance_score
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import explained_variance_score
 
 from app import app
 
@@ -36,51 +31,60 @@ df['month'] = df['timeFrom'].dt.month
 df = df.set_index('timeFrom')
 df = df[df['TotalParkings'] > 0]
 
-def predict_by_average(base_df, predict_df, checklist):
-    predict_parkings = []
-    for row, index in predict_df.iterrows():
-        # lens = []
-        # Group Parking by same Hour
-        average_df = base_df.copy()
-        average_df = average_df[(average_df['hour'] == index['hour'])]
-        # lens.append(len(average_df))
-        valid_df = average_df.copy()
+def statistics_table(predict_df):
+    # Statistics
+    p1 = len(predict_df[predict_df['PredictProximity'] >= 95])
+    p2 = len(predict_df[(predict_df['PredictProximity'] >= 90) & (predict_df['PredictProximity'] < 95)])
+    p3 = len(predict_df[(predict_df['PredictProximity'] >= 80) & (predict_df['PredictProximity'] < 90)])
+    p4 = len(predict_df[(predict_df['PredictProximity'] >= 70) & (predict_df['PredictProximity'] < 80)])
+    p5 = len(predict_df[(predict_df['PredictProximity'] >= 60) & (predict_df['PredictProximity'] < 70)])
+    p6 = len(predict_df[(predict_df['PredictProximity'] >= 50) & (predict_df['PredictProximity'] < 60)])
+    p7 = len(predict_df[predict_df['PredictProximity'] < 50])
+    p_total = len(predict_df)
 
-        # Groud Parkings by same weekday condition
-        if 'weekday' in checklist:
-            average_df = average_df[(average_df['weekday'] == index['weekday'])]
-            # lens.append(len(average_df))
-            if len(average_df) > 0:
-                valid_df = average_df.copy()
-
-        # Group Parking by same isRain condition
-        if 'rain' in checklist:
-            average_df = average_df[(average_df['isRain'] == index['isRain'])]
-            # lens.append(len(average_df))
-            if len(average_df) > 0:
-                valid_df = average_df.copy()
-
-        # Group Parking by same isHoliday condition
-        if 'holiday' in checklist:
-            average_df = average_df[(average_df['isHoliday'] == index['isHoliday'])]
-            # lens.append(len(average_df))
-            if len(average_df) > 0:
-                valid_df = average_df.copy()
-
-        # Group Parking by same Month
-        if 'month' in checklist:
-            average_df = average_df[(average_df['month'] == index['month'])]
-            # lens.append(len(average_df))
-            if (len(average_df) > 0):
-                valid_df = average_df.copy()
-
-        predict_parkings.append(valid_df['TotalParkings'].mean())
-
-    predict_df['TotalParkingsPredict'] = predict_parkings
-    return predict_df
+    statistics = pd.DataFrame(
+        {
+            "Predict Proximity": [
+                '95% ~ 100%',
+                '90% ~ 95%',
+                '80% ~ 90%',
+                '70% ~ 80%',
+                '60% ~ 70%',
+                '50% ~ 60%',
+                'less than 50%',
+                '',
+                'Total Records',
+            ],
+            "Total": [
+                str(p1) + ' records',
+                str(p2) + ' records',
+                str(p3) + ' records',
+                str(p4) + ' records',
+                str(p5) + ' records',
+                str(p6) + ' records',
+                str(p7) + ' records',
+                '',
+                str(p_total) + ' records',
+            ],
+            "Percentage": [
+                str(round(p1 * 100 / p_total, 2)) + "%",
+                str(round(p2 * 100 / p_total, 2)) + "%",
+                str(round(p3 * 100 / p_total, 2)) + "%",
+                str(round(p4 * 100 / p_total, 2)) + "%",
+                str(round(p5 * 100 / p_total, 2)) + "%",
+                str(round(p6 * 100 / p_total, 2)) + "%",
+                str(round(p7 * 100 / p_total, 2)) + "%",
+                '',
+                "100%",
+            ]
+        }
+    )
+    return statistics
 
 
 layout = html.Div([
+    dbc.Row([html.H3("Parking Demand Prediction - Random Forest")], justify="center", align="center"),
+    html.Br(),
     html.H4('Parameters:'),
     dbc.Row([
         dbc.Col([
@@ -113,20 +117,6 @@ layout = html.Div([
             ),
         ], className='graph-grid', width="auto"),
         dbc.Col([
-            dbc.Label('Consider Variables:'),
-            dcc.Checklist(
-                id='pd2_checklist',
-                options=[
-                    {'label': 'isRain', 'value': 'rain'},
-                    {'label': 'isHoliday', 'value': 'holiday'},
-                    {'label': 'isWeekday', 'value': 'weekday'},
-                    {'label': 'SameMonth', 'value': 'month'},
-                ],
-                value=['rain', 'holiday', 'weekday', 'month'],
-                labelStyle={'display': 'inline-block', "marginRight": "20px"}
-            ),
-        ], className='graph-grid', width="auto"),
-        dbc.Col([
             dbc.Label('Submit:'),
             html.Br(),
             dbc.Button("Start Forecast", id="pd2_btn_forecast", color="success")
@@ -144,10 +134,13 @@ layout = html.Div([
             dcc.Loading(id="pd2_loading-icon", children=[html.Div(dcc.Graph(id='pd2_dailychart'))], type="default")
         ]),
     ], className='graph-grid'),
+    html.Br(),
     dbc.Row([
+        dbc.Col([], width=3),
         dbc.Col([
             html.Div([], id='pd2_table_statistics'),
-        ])
+        ], width=6),
+        dbc.Col([], width=3),
     ])
 ])
 
@@ -158,10 +151,9 @@ layout = html.Div([
      Output('pd2_table_statistics', 'children')],
     [Input('pd2_region_filter', 'value'),
      Input('pd2_date_slider', 'value'),
-     Input('pd2_checklist', 'value'),
      Input("pd2_btn_forecast", "n_clicks")]
 )
-def update_data(region_filter, train_size, checklist, btn_forecast):
+def update_data(region_filter, train_size, btn_forecast):
     pd2_mainchart = go.Figure()
     pd2_mainchart.update_layout(height=250)
 
@@ -240,5 +232,22 @@ def update_data(region_filter, train_size, checklist, btn_forecast):
             hovermode='x unified',
             margin=dict(l=20, r=20, t=40, b=5),
         )
+
+        # Fill Proximity and Difference Columns
+        df3_dif = {'difference': [], 'proximity': []}
+
+        for row, index in predict_df.iterrows():
+            prox_math = 100 - abs(round((((index['TotalParkingsPredict'] * 100) / index['TotalParkings'])) - 100, 2))
+            df3_dif['proximity'].append(prox_math)
+
+            dif_math = round((((index['TotalParkingsPredict'] * 100) / index['TotalParkings'])) - 100, 2)
+            df3_dif['difference'].append(dif_math)
+
+        predict_df['PredictProximity'] = df3_dif['proximity']
+        predict_df['PredictDifference'] = df3_dif['difference']
+
+        pd2_table_statistics = dbc.Table.from_dataframe(statistics_table(predict_df), bordered=True, dark=True,
+                                                        hover=True,
+                                                        responsive=True, striped=True)
 
     return (pd2_mainchart, pd2_dailychart, pd2_table_statistics)
